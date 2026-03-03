@@ -1,0 +1,5 @@
+{
+  "name": "Controle Financeiro Pessoal",
+  "description": "Aplicativo web de controle financeiro pessoal com integração ao Google Sheets.",
+  "requestFramePermissions": []
+}
