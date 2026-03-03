@@ -8,8 +8,7 @@ import {
   Settings,
   PieChart,
   LogOut,
-  KeyRound,
-  Users
+  KeyRound
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAuth } from "../context/AuthContext";
@@ -20,7 +19,6 @@ const navItems = [
   { to: "/efetivadas", icon: CheckCircle, label: "Efetivadas" },
   { to: "/historico", icon: History, label: "Histórico Geral" },
   { to: "/relatorios", icon: PieChart, label: "Relatórios" },
-  { to: "/usuarios", icon: Users, label: "Usuários" },
   { to: "/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
