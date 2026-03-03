@@ -17,6 +17,7 @@ import { Historico } from "./pages/Historico";
 import { Relatorios } from "./pages/Relatorios";
 import { Configuracoes } from "./pages/Configuracoes";
 import { EditPassword } from "./pages/EditPassword";
+import { Usuarios } from "./pages/Usuarios";
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -37,6 +38,7 @@ function AppRoutes() {
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="senha" element={<EditPassword />} />
+          <Route path="usuarios" element={<Usuarios />} />
         </Route>
       </Route>
     </Routes>
