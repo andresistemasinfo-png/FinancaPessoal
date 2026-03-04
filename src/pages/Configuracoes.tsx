@@ -10,7 +10,7 @@ import {
   Select,
   Modal,
 } from "../components/ui/Card";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Edit2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 export const Configuracoes: React.FC = () => {
@@ -27,12 +27,17 @@ export const Configuracoes: React.FC = () => {
     deleteAgente,
     addClasse,
     deleteClasse,
+    updateConta,
+    updateProjeto,
+    updateAgente,
+    updateClasse,
   } = useFinance();
 
   const [activeTab, setActiveTab] = useState<
     "contas" | "projetos" | "agentes" | "classes"
   >("contas");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   // Estado para o modal de confirmação de reset
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -43,22 +48,50 @@ export const Configuracoes: React.FC = () => {
     const formData = new FormData(e.currentTarget);
 
     if (activeTab === "contas") {
-      await addConta({
-        nome: formData.get("nome") as string,
-        saldoInicial: Number(formData.get("saldoInicial")),
-      });
+      if (editingItem) {
+        await updateConta(editingItem.id, {
+          nome: formData.get("nome") as string,
+          saldoInicial: Number(formData.get("saldoInicial")),
+        });
+      } else {
+        await addConta({
+          nome: formData.get("nome") as string,
+          saldoInicial: Number(formData.get("saldoInicial")),
+        });
+      }
     } else if (activeTab === "projetos") {
-      await addProjeto({ nome: formData.get("nome") as string });
+      if (editingItem) {
+        await updateProjeto(editingItem.id, { nome: formData.get("nome") as string });
+      } else {
+        await addProjeto({ nome: formData.get("nome") as string });
+      }
     } else if (activeTab === "agentes") {
-      await addAgente({ nome: formData.get("nome") as string });
+      if (editingItem) {
+        await updateAgente(editingItem.id, { nome: formData.get("nome") as string });
+      } else {
+        await addAgente({ nome: formData.get("nome") as string });
+      }
     } else if (activeTab === "classes") {
-      await addClasse({
-        nome: formData.get("nome") as string,
-        tipo: formData.get("tipo") as "Receita" | "Despesa",
-      });
+      if (editingItem) {
+        await updateClasse(editingItem.id, {
+          nome: formData.get("nome") as string,
+          tipo: formData.get("tipo") as "Receita" | "Despesa",
+        });
+      } else {
+        await addClasse({
+          nome: formData.get("nome") as string,
+          tipo: formData.get("tipo") as "Receita" | "Despesa",
+        });
+      }
     }
 
     setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingItem(item);
+    setIsModalOpen(true);
   };
 
   const handleResetData = async () => {
@@ -107,14 +140,24 @@ export const Configuracoes: React.FC = () => {
                     Saldo Inicial: R$ {c.saldoInicial.toFixed(2)}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteConta(c.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(c)}
+                    className="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 p-2 h-auto"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteConta(c.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -128,14 +171,24 @@ export const Configuracoes: React.FC = () => {
                 className="flex justify-between items-center p-3 bg-emerald-50/50 rounded-xl border border-emerald-100"
               >
                 <div className="font-medium text-emerald-900">{p.nome}</div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteProjeto(p.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(p)}
+                    className="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 p-2 h-auto"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteProjeto(p.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -149,14 +202,24 @@ export const Configuracoes: React.FC = () => {
                 className="flex justify-between items-center p-3 bg-emerald-50/50 rounded-xl border border-emerald-100"
               >
                 <div className="font-medium text-emerald-900">{a.nome}</div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteAgente(a.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(a)}
+                    className="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 p-2 h-auto"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteAgente(a.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -173,14 +236,24 @@ export const Configuracoes: React.FC = () => {
                   <div className="font-medium text-emerald-900">{c.nome}</div>
                   <div className="text-xs text-emerald-600">{c.tipo}</div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteClasse(c.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(c)}
+                    className="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 p-2 h-auto"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteClasse(c.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -222,7 +295,10 @@ export const Configuracoes: React.FC = () => {
             {activeTab}
           </CardTitle>
           <Button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setEditingItem(null);
+              setIsModalOpen(true);
+            }}
             size="sm"
             className="gap-2 h-8 text-xs"
           >
@@ -234,15 +310,18 @@ export const Configuracoes: React.FC = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={`Novo(a) ${activeTab.slice(0, -1)}`}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
+        title={`${editingItem ? 'Editar' : 'Novo(a)'} ${activeTab.slice(0, -1)}`}
       >
         <form onSubmit={handleAdd} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-emerald-900 mb-1">
               Nome
             </label>
-            <Input name="nome" required placeholder="Digite o nome..." />
+            <Input name="nome" required placeholder="Digite o nome..." defaultValue={editingItem?.nome} />
           </div>
 
           {activeTab === "contas" && (
@@ -256,6 +335,7 @@ export const Configuracoes: React.FC = () => {
                 step="0.01"
                 required
                 placeholder="0.00"
+                defaultValue={editingItem?.saldoInicial}
               />
             </div>
           )}
@@ -265,7 +345,7 @@ export const Configuracoes: React.FC = () => {
               <label className="block text-sm font-medium text-emerald-900 mb-1">
                 Tipo
               </label>
-              <Select name="tipo" required>
+              <Select name="tipo" required defaultValue={editingItem?.tipo || "Despesa"}>
                 <option value="Despesa">Despesa</option>
                 <option value="Receita">Receita</option>
               </Select>
@@ -276,7 +356,10 @@ export const Configuracoes: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingItem(null);
+              }}
             >
               Cancelar
             </Button>
