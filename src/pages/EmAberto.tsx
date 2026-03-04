@@ -9,7 +9,7 @@ import {
   Modal,
 } from "../components/ui/Card";
 import { format, parseISO } from "date-fns";
-import { Plus, CheckCircle2, Edit2, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, Edit2, Trash2, List } from "lucide-react";
 import { Lancamento } from "../types";
 
 export const EmAberto: React.FC = () => {
@@ -27,18 +27,46 @@ export const EmAberto: React.FC = () => {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBaixaModalOpen, setIsBaixaModalOpen] = useState(false);
+  const [isParcelasModalOpen, setIsParcelasModalOpen] = useState(false);
   const [selectedLancamentoId, setSelectedLancamentoId] = useState<
+    string | null
+  >(null);
+  const [selectedRecorrenciaPaiId, setSelectedRecorrenciaPaiId] = useState<
     string | null
   >(null);
   const [lancamentoToEdit, setLancamentoToEdit] = useState<Lancamento | null>(null);
 
-  const pendentes = lancamentos
-    .filter((l) => l.status === "Pendente")
-    .sort(
-      (a, b) =>
-        new Date(a.dataVencimento).getTime() -
-        new Date(b.dataVencimento).getTime(),
-    );
+  const pendentesRaw = lancamentos
+    .filter((l) => l.status === "Pendente");
+
+  const pendentesGrouped = pendentesRaw.reduce((acc, l) => {
+    if (l.quantidadeParcelas > 1 && l.idRecorrenciaPai) {
+      if (!acc[l.idRecorrenciaPai]) {
+        acc[l.idRecorrenciaPai] = l;
+      } else if (l.parcelaAtual < acc[l.idRecorrenciaPai].parcelaAtual) {
+        acc[l.idRecorrenciaPai] = l;
+      }
+    } else {
+      acc[l.id] = l;
+    }
+    return acc;
+  }, {} as Record<string, Lancamento>);
+
+  const pendentes = Object.values(pendentesGrouped).sort(
+    (a, b) =>
+      new Date(a.dataVencimento).getTime() -
+      new Date(b.dataVencimento).getTime(),
+  );
+
+  const parcelasEmAberto = selectedRecorrenciaPaiId
+    ? lancamentos
+        .filter(
+          (l) =>
+            l.idRecorrenciaPai === selectedRecorrenciaPaiId &&
+            l.status === "Pendente"
+        )
+        .sort((a, b) => a.parcelaAtual - b.parcelaAtual)
+    : [];
 
   const handleEfetivar = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -147,6 +175,11 @@ export const EmAberto: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-emerald-700">
                       {classes.find((c) => c.id === l.classeId)?.nome}
+                      {l.quantidadeParcelas > 1 && (
+                        <span className="ml-2 text-xs text-emerald-500">
+                          ({l.parcelaAtual}/{l.quantidadeParcelas})
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-emerald-700">
                       {agentes.find((a) => a.id === l.agenteId)?.nome}
@@ -172,6 +205,19 @@ export const EmAberto: React.FC = () => {
                         >
                           <CheckCircle2 className="w-5 h-5" />
                         </Button>
+                        {l.quantidadeParcelas > 1 && l.idRecorrenciaPai && (
+                          <Button
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 rounded-full"
+                            onClick={() => {
+                              setSelectedRecorrenciaPaiId(l.idRecorrenciaPai || null);
+                              setIsParcelasModalOpen(true);
+                            }}
+                            title="Ver Parcelas"
+                          >
+                            <List className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-full"
@@ -200,6 +246,56 @@ export const EmAberto: React.FC = () => {
           </table>
         </div>
       </Card>
+
+      <Modal
+        isOpen={isParcelasModalOpen}
+        onClose={() => setIsParcelasModalOpen(false)}
+        title="Parcelas em Aberto"
+        className="max-w-2xl"
+      >
+        <div className="overflow-x-auto rounded-xl border border-emerald-100">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-emerald-600 uppercase bg-emerald-50/80 border-b border-emerald-100">
+              <tr>
+                <th className="px-4 py-3 font-medium">Parcela</th>
+                <th className="px-4 py-3 font-medium">Vencimento</th>
+                <th className="px-4 py-3 font-medium text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parcelasEmAberto.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-emerald-500">
+                    Nenhuma parcela pendente encontrada.
+                  </td>
+                </tr>
+              ) : (
+                parcelasEmAberto.map((p) => (
+                  <tr key={p.id} className="border-b border-emerald-50 hover:bg-emerald-50/50 transition-colors">
+                    <td className="px-4 py-3 text-emerald-900 font-medium">
+                      {p.parcelaAtual} / {p.quantidadeParcelas}
+                    </td>
+                    <td className="px-4 py-3 text-emerald-900">
+                      {format(parseISO(p.dataVencimento), "dd/MM/yyyy")}
+                    </td>
+                    <td className={`px-4 py-3 text-right font-medium ${p.tipo === "Receita" ? "text-emerald-600" : "text-red-600"}`}>
+                      {new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(p.valor)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="pt-4 flex justify-end">
+          <Button variant="outline" onClick={() => setIsParcelasModalOpen(false)}>
+            Fechar
+          </Button>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isBaixaModalOpen}
