@@ -10,7 +10,8 @@ import {
   Select,
   Modal,
 } from "../components/ui/Card";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 export const Configuracoes: React.FC = () => {
   const {
@@ -33,6 +34,10 @@ export const Configuracoes: React.FC = () => {
   >("contas");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Estado para o modal de confirmação de reset
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -54,6 +59,36 @@ export const Configuracoes: React.FC = () => {
     }
 
     setIsModalOpen(false);
+  };
+
+  const handleResetData = async () => {
+    setIsResetting(true);
+    try {
+      // 1. Apagar todos os lançamentos
+      const { error: errorLancamentos } = await supabase
+        .from('lancamentos')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos
+
+      if (errorLancamentos) throw errorLancamentos;
+
+      // 2. Zerar o saldo inicial de todas as contas
+      for (const conta of contas) {
+        const { error: errorConta } = await supabase
+          .from('contas')
+          .update({ saldoInicial: 0 })
+          .eq('id', conta.id);
+          
+        if (errorConta) throw errorConta;
+      }
+
+      // Recarregar a página para atualizar o contexto
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao resetar dados:', error);
+      alert('Ocorreu um erro ao resetar os dados. Por favor, tente novamente.');
+      setIsResetting(false);
+    }
   };
 
   const renderContent = () => {
@@ -155,9 +190,19 @@ export const Configuracoes: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-emerald-950 tracking-tight">
-        Configurações
-      </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-3xl font-bold text-emerald-950 tracking-tight">
+          Configurações
+        </h1>
+        <Button 
+          variant="outline" 
+          className="bg-white gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+          onClick={() => setIsResetModalOpen(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="hidden sm:inline">Resetar Dados</span>
+        </Button>
+      </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2">
         {(["contas", "projetos", "agentes", "classes"] as const).map((tab) => (
@@ -238,6 +283,43 @@ export const Configuracoes: React.FC = () => {
             <Button type="submit">Salvar</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal de Confirmação de Reset */}
+      <Modal 
+        isOpen={isResetModalOpen} 
+        onClose={() => !isResetting && setIsResetModalOpen(false)} 
+        title="Atenção: Ação Irreversível" 
+        className="max-w-md"
+      >
+        <div className="space-y-6">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start">
+            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">Você está prestes a apagar todos os dados!</h3>
+              <p className="mt-1 text-sm text-red-700">
+                Esta ação irá <strong>apagar todos os lançamentos</strong> e <strong>zerar o saldo inicial</strong> de todas as contas. Esta operação não pode ser desfeita.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsResetModalOpen(false)}
+              disabled={isResetting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+              onClick={handleResetData}
+              disabled={isResetting}
+            >
+              {isResetting ? 'Apagando Dados...' : 'Sim, Apagar Tudo'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

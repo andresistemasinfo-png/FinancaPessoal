@@ -64,7 +64,7 @@ export const Dashboard: React.FC = () => {
       const saldo = conta.saldoInicial + lancamentosFiltrados
         .filter(l => l.status === 'Efetivado' && l.contaId === conta.id)
         .reduce((acc, l) => l.tipo === 'Receita' ? acc + l.valor : acc - l.valor, 0);
-      return { name: conta.nome, value: saldo, id: conta.id, saldoInicial: conta.saldoInicial };
+      return { name: conta.nome, valor: saldo, id: conta.id, saldoInicial: conta.saldoInicial };
     });
   }, [contas, lancamentosFiltrados]);
 
@@ -72,8 +72,8 @@ export const Dashboard: React.FC = () => {
     const despesas = lancamentosFiltrados.filter(l => l.tipo === 'Despesa');
     const data = projetos.map(p => {
       const total = despesas.filter(l => l.projetoId === p.id).reduce((acc, l) => acc + l.valor, 0);
-      return { name: p.nome, value: total, id: p.id };
-    }).filter(d => d.value > 0);
+      return { name: p.nome, valor: total, id: p.id };
+    }).filter(d => d.valor > 0);
     return data;
   }, [lancamentosFiltrados, projetos]);
 
@@ -138,52 +138,52 @@ export const Dashboard: React.FC = () => {
             <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
           </Button>
 
-          {isFilterOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-emerald-100 p-4 z-10 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Início</label>
-                  <Input 
-                    type="date" 
-                    value={dataInicio} 
-                    onChange={e => setDataInicio(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Fim</label>
-                  <Input 
-                    type="date" 
-                    value={dataFim} 
-                    onChange={e => setDataFim(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-                <div className="pt-2 flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => {
-                      setDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                      setDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-                    }}
-                  >
-                    Mês Atual
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setIsFilterOpen(false)}
-                  >
-                    Aplicar
-                  </Button>
+            {isFilterOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-emerald-100 p-4 z-10 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Início</label>
+                    <Input 
+                      type="date" 
+                      value={dataInicio} 
+                      onChange={e => setDataInicio(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Fim</label>
+                    <Input 
+                      type="date" 
+                      value={dataFim} 
+                      onChange={e => setDataFim(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="pt-2 flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => {
+                        setDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                        setDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+                      }}
+                    >
+                      Mês Atual
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setIsFilterOpen(false)}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-emerald-600 text-white shadow-md border-0">
@@ -232,8 +232,8 @@ export const Dashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280' }} tickFormatter={(value) => `R$ ${value}`} />
-                <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} onClick={handleBarClick} cursor="pointer" />
+                <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                <Bar dataKey="valor" fill="#10b981" radius={[4, 4, 0, 0]} onClick={handleBarClick} cursor="pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -255,7 +255,7 @@ export const Dashboard: React.FC = () => {
                     innerRadius={60}
                     outerRadius={100}
                     paddingAngle={5}
-                    dataKey="value"
+                    dataKey="valor"
                     onClick={handlePieClick}
                     cursor="pointer"
                   >
