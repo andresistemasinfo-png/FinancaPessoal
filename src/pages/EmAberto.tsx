@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useFinance } from "../context/FinanceContext";
 import {
   Card,
@@ -8,8 +8,8 @@ import {
   Select,
   Modal,
 } from "../components/ui/Card";
-import { format, parseISO } from "date-fns";
-import { Plus, CheckCircle2, Edit2, Trash2, List } from "lucide-react";
+import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { Plus, CheckCircle2, Edit2, Trash2, List, Calendar, ChevronDown } from "lucide-react";
 import { Lancamento } from "../types";
 
 export const EmAberto: React.FC = () => {
@@ -36,8 +36,30 @@ export const EmAberto: React.FC = () => {
   >(null);
   const [lancamentoToEdit, setLancamentoToEdit] = useState<Lancamento | null>(null);
 
-  const pendentesRaw = lancamentos
-    .filter((l) => l.status === "Pendente");
+  // Filtro de Data
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const [dataInicio, setDataInicio] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const pendentesRaw = useMemo(() => {
+    return lancamentos.filter((l) => {
+      if (l.status !== "Pendente") return false;
+      if (dataInicio && l.dataVencimento < dataInicio) return false;
+      if (dataFim && l.dataVencimento > dataFim) return false;
+      return true;
+    });
+  }, [lancamentos, dataInicio, dataFim]);
 
   const pendentesGrouped = pendentesRaw.reduce((acc, l) => {
     if (l.quantidadeParcelas > 1 && l.idRecorrenciaPai) {
@@ -125,13 +147,72 @@ export const EmAberto: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold text-emerald-950 tracking-tight">
           Em Aberto
         </h1>
-        <Button onClick={() => setIsNewModalOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Novo Lançamento
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={filterRef}>
+            <Button 
+              variant="outline" 
+              className="bg-white gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Período:</span>
+              {format(parseISO(dataInicio), 'dd/MM/yy')} a {format(parseISO(dataFim), 'dd/MM/yy')}
+              <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+            </Button>
+
+            {isFilterOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-emerald-100 p-4 z-10 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Início</label>
+                    <Input 
+                      type="date" 
+                      value={dataInicio} 
+                      onChange={e => setDataInicio(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-emerald-600 uppercase mb-1">Data Fim</label>
+                    <Input 
+                      type="date" 
+                      value={dataFim} 
+                      onChange={e => setDataFim(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="pt-2 flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => {
+                        setDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                        setDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+                      }}
+                    >
+                      Mês Atual
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setIsFilterOpen(false)}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <Button onClick={() => setIsNewModalOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Novo Lançamento
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-white border-emerald-100 shadow-sm overflow-hidden">

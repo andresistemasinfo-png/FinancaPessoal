@@ -43,30 +43,59 @@ export const Dashboard: React.FC = () => {
   }, [lancamentos, dataInicio, dataFim]);
 
   const metrics = useMemo(() => {
+    // Saldo Atual: considerando todos os lançamentos efetivados
     const saldoAtual = contas.reduce((acc, c) => acc + c.saldoInicial, 0) +
-      lancamentosFiltrados.filter(l => l.status === 'Efetivado').reduce((acc, l) => l.tipo === 'Receita' ? acc + l.valor : acc - l.valor, 0);
+      lancamentos.filter(l => l.status === 'Efetivado').reduce((acc, l) => l.tipo === 'Receita' ? acc + l.valor : acc - l.valor, 0);
 
-    const despesasEmAberto = lancamentosFiltrados
+    // Em Aberto no período selecionado
+    const despesasEmAbertoPeriodo = lancamentosFiltrados
       .filter(l => l.status === 'Pendente' && l.tipo === 'Despesa')
       .reduce((acc, l) => acc + l.valor, 0);
 
-    const receitasEmAberto = lancamentosFiltrados
+    const receitasEmAbertoPeriodo = lancamentosFiltrados
       .filter(l => l.status === 'Pendente' && l.tipo === 'Receita')
       .reduce((acc, l) => acc + l.valor, 0);
 
-    const saldoFuturo = saldoAtual + receitasEmAberto - despesasEmAberto;
+    const isFuture = dataFim >= format(new Date(), 'yyyy-MM-dd');
 
-    return { saldoAtual, despesasEmAberto, saldoFuturo };
-  }, [lancamentosFiltrados, contas]);
+    // Saldo no fim do período
+    let saldoFuturo = 0;
+    if (isFuture) {
+      // Projeção de Saldo Futuro (até o final do período selecionado)
+      const receitasPendentesAteFim = lancamentos
+        .filter(l => l.status === 'Pendente' && l.tipo === 'Receita' && l.dataVencimento <= dataFim)
+        .reduce((acc, l) => acc + l.valor, 0);
+
+      const despesasPendentesAteFim = lancamentos
+        .filter(l => l.status === 'Pendente' && l.tipo === 'Despesa' && l.dataVencimento <= dataFim)
+        .reduce((acc, l) => acc + l.valor, 0);
+
+      saldoFuturo = saldoAtual + receitasPendentesAteFim - despesasPendentesAteFim;
+    } else {
+      // Saldo real no final do período passado
+      saldoFuturo = contas.reduce((acc, c) => acc + c.saldoInicial, 0) +
+        lancamentos.filter(l => {
+          if (l.status !== 'Efetivado') return false;
+          const dataRef = l.dataBaixa || l.dataVencimento;
+          return dataRef <= dataFim;
+        }).reduce((acc, l) => l.tipo === 'Receita' ? acc + l.valor : acc - l.valor, 0);
+    }
+
+    return { saldoAtual, despesasEmAbertoPeriodo, receitasEmAbertoPeriodo, saldoFuturo, isFuture };
+  }, [lancamentos, lancamentosFiltrados, contas, dataFim]);
 
   const saldoPorConta = useMemo(() => {
     return contas.map(conta => {
-      const saldo = conta.saldoInicial + lancamentosFiltrados
-        .filter(l => l.status === 'Efetivado' && l.contaId === conta.id)
+      const saldo = conta.saldoInicial + lancamentos
+        .filter(l => {
+          if (l.status !== 'Efetivado' || l.contaId !== conta.id) return false;
+          const dataRef = l.dataBaixa || l.dataVencimento;
+          return dataRef <= dataFim;
+        })
         .reduce((acc, l) => l.tipo === 'Receita' ? acc + l.valor : acc - l.valor, 0);
       return { name: conta.nome, valor: saldo, id: conta.id, saldoInicial: conta.saldoInicial };
     });
-  }, [contas, lancamentosFiltrados]);
+  }, [contas, lancamentos, dataFim]);
 
   const despesasPorProjeto = useMemo(() => {
     const despesas = lancamentosFiltrados.filter(l => l.tipo === 'Despesa');
@@ -87,8 +116,12 @@ export const Dashboard: React.FC = () => {
     
     if (!contaId) return;
 
-    const contaLancamentos = lancamentosFiltrados
-      .filter(l => l.status === 'Efetivado' && l.contaId === contaId)
+    const contaLancamentos = lancamentos
+      .filter(l => {
+        if (l.status !== 'Efetivado' || l.contaId !== contaId) return false;
+        const dataRef = l.dataBaixa || l.dataVencimento;
+        return dataRef <= dataFim;
+      })
       .sort((a, b) => new Date(b.dataBaixa || '').getTime() - new Date(a.dataBaixa || '').getTime());
 
     setDetail({
@@ -185,13 +218,13 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-emerald-600 text-white shadow-md border-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-emerald-100 text-sm font-medium uppercase tracking-wider">Saldo Atual</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-light tracking-tight">
+            <div className="text-3xl font-light tracking-tight">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.saldoAtual)}
             </div>
           </CardContent>
@@ -199,23 +232,39 @@ export const Dashboard: React.FC = () => {
         
         <Card className="bg-white border-emerald-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-emerald-600 text-sm font-medium uppercase tracking-wider">Despesas em Aberto</CardTitle>
+            <CardTitle className="text-emerald-600 text-sm font-medium uppercase tracking-wider">Receitas em Aberto</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-light tracking-tight text-red-500">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.despesasEmAberto)}
+            <div className="text-3xl font-light tracking-tight text-emerald-600">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.receitasEmAbertoPeriodo)}
             </div>
+            <p className="text-xs text-emerald-500 mt-1">No período selecionado</p>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-emerald-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-emerald-600 text-sm font-medium uppercase tracking-wider">Saldo Futuro Projetado</CardTitle>
+            <CardTitle className="text-emerald-600 text-sm font-medium uppercase tracking-wider">Despesas em Aberto</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-light tracking-tight text-emerald-900">
+            <div className="text-3xl font-light tracking-tight text-red-500">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.despesasEmAbertoPeriodo)}
+            </div>
+            <p className="text-xs text-emerald-500 mt-1">No período selecionado</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-emerald-100 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-emerald-600 text-sm font-medium uppercase tracking-wider">
+              {metrics.isFuture ? 'Saldo Projetado' : 'Saldo no Período'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-light tracking-tight text-emerald-900">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.saldoFuturo)}
             </div>
+            <p className="text-xs text-emerald-500 mt-1">Até o fim do período</p>
           </CardContent>
         </Card>
       </div>
